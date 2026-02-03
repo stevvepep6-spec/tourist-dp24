@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Search, MapPin, Star, Clock, Wallet } from 'lucide-react';
+import { Search, MapPin, Star, Clock, Wallet, User, LogIn } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Place, Food } from '../types';
 import { Link } from '../components/Link';
+import { useAuth } from '../contexts/AuthContext';
 
 export function HomePage() {
   const [places, setPlaces] = useState<Place[]>([]);
@@ -10,6 +11,7 @@ export function HomePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'places' | 'foods'>('all');
   const [loading, setLoading] = useState(true);
+  const { user, profile } = useAuth();
 
   useEffect(() => {
     fetchData();
@@ -55,6 +57,23 @@ export function HomePage() {
                 Wonderful Indonesia
               </h1>
             </div>
+            {user ? (
+              <Link
+                to="/profile"
+                className="flex items-center gap-2 bg-gradient-to-r from-orange-600 to-red-600 text-white px-6 py-2.5 rounded-xl font-semibold hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+              >
+                <User className="w-5 h-5" />
+                <span>{profile?.full_name || 'Profile'}</span>
+              </Link>
+            ) : (
+              <Link
+                to="/auth"
+                className="flex items-center gap-2 bg-gradient-to-r from-orange-600 to-red-600 text-white px-6 py-2.5 rounded-xl font-semibold hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+              >
+                <LogIn className="w-5 h-5" />
+                <span>Masuk</span>
+              </Link>
+            )}
           </div>
         </div>
       </header>

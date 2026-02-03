@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, MapPin, Star, Clock, Wallet, Navigation } from 'lucide-react';
+import { ArrowLeft, MapPin, Star, Clock, Wallet, Navigation, Heart, CheckCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Food } from '../types';
 import { Link } from '../components/Link';
+import { useAuth } from '../contexts/AuthContext';
 
 interface FoodDetailPageProps {
   id: string;
@@ -11,10 +12,17 @@ interface FoodDetailPageProps {
 export function FoodDetailPage({ id }: FoodDetailPageProps) {
   const [food, setFood] = useState<Food | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [inHistory, setInHistory] = useState(false);
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchFood();
-  }, [id]);
+    if (user) {
+      checkFavoriteStatus();
+      checkHistoryStatus();
+    }
+  }, [id, user]);
 
   const fetchFood = async () => {
     setLoading(true);
@@ -26,6 +34,78 @@ export function FoodDetailPage({ id }: FoodDetailPageProps) {
 
     if (data) setFood(data);
     setLoading(false);
+  };
+
+  const checkFavoriteStatus = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('favorites')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('item_id', id)
+      .eq('item_type', 'food')
+      .maybeSingle();
+
+    setIsFavorite(!!data);
+  };
+
+  const checkHistoryStatus = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('history')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('item_id', id)
+      .eq('item_type', 'food')
+      .maybeSingle();
+
+    setInHistory(!!data);
+  };
+
+  const toggleFavorite = async () => {
+    if (!user) {
+      window.history.pushState({}, '', '/auth');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+      return;
+    }
+
+    if (isFavorite) {
+      await supabase
+        .from('favorites')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('item_id', id)
+        .eq('item_type', 'food');
+      setIsFavorite(false);
+    } else {
+      await supabase
+        .from('favorites')
+        .insert({ user_id: user.id, item_id: id, item_type: 'food' });
+      setIsFavorite(true);
+    }
+  };
+
+  const toggleHistory = async () => {
+    if (!user) {
+      window.history.pushState({}, '', '/auth');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+      return;
+    }
+
+    if (inHistory) {
+      await supabase
+        .from('history')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('item_id', id)
+        .eq('item_type', 'food');
+      setInHistory(false);
+    } else {
+      await supabase
+        .from('history')
+        .insert({ user_id: user.id, item_id: id, item_type: 'food' });
+      setInHistory(true);
+    }
   };
 
   if (loading) {
@@ -126,6 +206,33 @@ export function FoodDetailPage({ id }: FoodDetailPageProps) {
               <h2 className="text-3xl font-bold text-gray-800 mb-4">About This Food</h2>
               <p className="text-gray-700 text-lg leading-relaxed">{food.description}</p>
             </div>
+
+            {user && (
+              <div className="flex gap-4 mb-10">
+                <button
+                  onClick={toggleFavorite}
+                  className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-2xl font-semibold transition-all duration-300 transform hover:scale-105 ${
+                    isFavorite
+                      ? 'bg-gradient-to-r from-red-600 to-pink-600 text-white shadow-lg'
+                      : 'bg-white border-2 border-orange-200 text-gray-700 hover:border-orange-400'
+                  }`}
+                >
+                  <Heart className={`w-5 h-5 ${isFavorite ? 'fill-white' : ''}`} />
+                  {isFavorite ? 'Hapus dari Favorit' : 'Tambah ke Favorit'}
+                </button>
+                <button
+                  onClick={toggleHistory}
+                  className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-2xl font-semibold transition-all duration-300 transform hover:scale-105 ${
+                    inHistory
+                      ? 'bg-gradient-to-r from-green-600 to-teal-600 text-white shadow-lg'
+                      : 'bg-white border-2 border-orange-200 text-gray-700 hover:border-orange-400'
+                  }`}
+                >
+                  <CheckCircle className={`w-5 h-5 ${inHistory ? 'fill-white' : ''}`} />
+                  {inHistory ? 'Sudah Dicoba' : 'Tandai Sudah Dicoba'}
+                </button>
+              </div>
+            )}
 
             {food.latitude && food.longitude && (
               <div>
